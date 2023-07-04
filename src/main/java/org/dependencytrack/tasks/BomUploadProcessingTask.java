@@ -29,6 +29,7 @@ import org.dependencytrack.event.BomUploadEvent;
 import org.dependencytrack.event.NewVulnerableDependencyAnalysisEvent;
 import org.dependencytrack.event.RepositoryMetaEvent;
 import org.dependencytrack.event.VulnerabilityAnalysisEvent;
+import org.dependencytrack.event.IndexEvent;
 import org.dependencytrack.model.Bom;
 import org.dependencytrack.model.Classifier;
 import org.dependencytrack.model.Component;
@@ -246,11 +247,15 @@ public class BomUploadProcessingTask implements Subscriber {
             final List<Component> componentsHollow, final List<ServiceComponent> servicesHollow) {
         filterUnknownCwes(qm, vulnerabilitiesTransient);
 
-        var stream = vulnerabilitiesTransient.stream()
-                .map(v -> new Object() {
-                    final Vulnerability oldV = qm.getVulnerabilityByVulnId(v.getSource(), v.getVulnId());
-                    final Vulnerability newV = v;
-                });
+        class VulnerabilityPair {
+            Vulnerability oldV;
+            Vulnerability newV;
+            VulnerabilityPair(Vulnerability o, Vulnerability n) {
+                oldV = o; newV = n;
+            }
+        }
+        Stream<VulnerabilityPair> stream = vulnerabilitiesTransient.stream()
+                .map(v -> new VulnerabilityPair(qm.getVulnerabilityByVulnId(v.getSource(), v.getVulnId()), v));
 
         Map<ComponentIdentity, Component> newComponents = componentsHollow.stream().collect(Collectors.toMap(
                 c -> new ComponentIdentity(c), c -> c));
@@ -345,8 +350,20 @@ public class BomUploadProcessingTask implements Subscriber {
             return merged;
         });
 
-        List<Vulnerability> mvl = mergedVulns.toList();
-        return qm.persist(mvl).stream().map(o -> (Vulnerability)o).toList();
+        List<Vulnerability> mergedVulnerabilities = mergedVulns.toList();
+        class SearchIndexInfo {
+            Vulnerability vulnerability;
+            IndexEvent.Action action;
+            SearchIndexInfo(Vulnerability v, IndexEvent.Action a) {
+                vulnerability = v; action = a;
+            }
+        }
+        final List<SearchIndexInfo> searchIndexInfo = mergedVulnerabilities.stream().map(v -> new SearchIndexInfo(
+                v, v.getUuid() == null ? IndexEvent.Action.CREATE : IndexEvent.Action.UPDATE )).toList();
+        mergedVulnerabilities = qm.persist(mergedVulnerabilities).stream().map(o -> (Vulnerability)o).toList();
+        for (SearchIndexInfo info : searchIndexInfo)
+            Event.dispatch(new IndexEvent(info.action, qm.getPersistenceManager().detachCopy(info.vulnerability)));
+        return mergedVulnerabilities;
     }
 
     private void filterUnknownCwes(final QueryManager qm, final List<Vulnerability> vulnerabilities) {
