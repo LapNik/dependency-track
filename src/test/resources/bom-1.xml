@@ -48,13 +48,6 @@
     <vulnerabilities>
         <vulnerability bom-ref="comp-vuln">
             <id>BOMVULN-01</id>
-            <!--<ratings>
-                <rating>
-                    <score>10.0</score>
-                    <severity>critical</severity>
-                    <method>CVSSv3</method>
-                </rating>
-            </ratings>-->
             <affects>
                 <target>
                     <ref>comp</ref>

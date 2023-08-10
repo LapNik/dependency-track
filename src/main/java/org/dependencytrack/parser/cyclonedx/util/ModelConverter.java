@@ -1197,11 +1197,11 @@ public class ModelConverter {
                 case CVSSV31:
                 case CVSSV3:
                     vulnerability.setCvssV3Vector(rating.getVector());
-                    vulnerability.setCvssV3BaseScore(new java.math.BigDecimal(rating.getScore()));
+                    vulnerability.setCvssV3BaseScore(java.math.BigDecimal.valueOf(rating.getScore()));
                     break;
                 case CVSSV2:
                     vulnerability.setCvssV2Vector(rating.getVector());
-                    vulnerability.setCvssV2BaseScore(new java.math.BigDecimal(rating.getScore()));
+                    vulnerability.setCvssV2BaseScore(java.math.BigDecimal.valueOf(rating.getScore()));
                     break;
                 case OWASP:
                     vulnerability.setOwaspRRVector(rating.getVector());
